@@ -1,0 +1,314 @@
+/* ═══════════════════════════════════════════════════════════════
+   BomberDuo — Hoja de estilos principal
+   ═══════════════════════════════════════════════════════════════ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0a0a12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Press Start 2P', monospace;
+  overflow: hidden;
+}
+
+#wrapper {
+  position: relative;
+  width: 720px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 60px rgba(255, 200, 0, 0.2);
+}
+
+/* ── HUD ── */
+#hud {
+  background: #0d0d1a;
+  border-bottom: 3px solid #ffcc00;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 9px;
+  position: relative;
+  z-index: 5;
+}
+
+#hud.hidden { display: none; }
+
+.phud {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+}
+
+.phud-name  { font-size: 9px;  letter-spacing: 1px; }
+.phud-lives { font-size: 11px; }
+.phud-stats { font-size: 7px;  opacity: .75; }
+
+.p1hud .phud-name { color: #44aaff; }
+.p2hud .phud-name { color: #ff4444; }
+.p2hud            { align-items: flex-end; }
+
+#hud-center  { text-align: center; }
+#game-timer  { font-size: 16px; color: #ffcc00; }
+#hud-label   { font-size: 7px;  color: #555; margin-top: 3px; }
+
+/* ── ÁREA DE JUEGO ── */
+#game-area {
+  position: relative;
+  width: 720px;
+  height: 624px;
+  background: #111;
+}
+
+canvas {
+  display: block;
+  width: 720px;
+  height: 624px;
+}
+
+/*OVERLAYS GENÉRICOS*/
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.overlay.hidden { display: none; }
+
+/*Efecto scanlines sobre el canvas*/
+#scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, .08) 3px,
+    rgba(0, 0, 0, .08) 4px
+  );
+  pointer-events: none;
+  z-index: 30;
+}
+
+/*MENÚ PRINCIPAL*/
+#main-menu {
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, #1a0a30 0%, #080810 100%);
+}
+
+.title-wrap { position: relative; margin-bottom: 10px; }
+
+.game-title {
+  font-size: 52px;
+  color: #ffcc00;
+  letter-spacing: 6px;
+  text-shadow: 0 0 30px #ffcc00, 0 0 60px #ff8800, 5px 5px 0 #aa0000;
+  animation: titlePulse 2.5s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+  0%, 100% { text-shadow: 0 0 30px #ffcc00, 0 0  60px #ff8800, 5px 5px 0 #aa0000; }
+  50%       { text-shadow: 0 0 60px #ffcc00, 0 0 100px #ff8800, 5px 5px 0 #aa0000; }
+}
+
+.game-subtitle {
+  font-size: 10px;
+  color: #ff8800;
+  letter-spacing: 3px;
+  margin-bottom: 44px;
+  text-align: center;
+}
+
+/*BOTONES*/
+.btn {
+  font-family: 'Press Start 2P', monospace;
+  cursor: pointer;
+  border: none;
+  letter-spacing: 2px;
+  transition: all .1s;
+}
+
+.btn-primary {
+  background: #ffcc00;
+  color: #000;
+  padding: 14px 40px;
+  font-size: 14px;
+  margin: 8px;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+
+.btn-primary:hover {
+  background: #fff;
+  transform: scale(1.06);
+  box-shadow: 0 0 30px #ffcc00;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #666;
+  padding: 10px 24px;
+  font-size: 9px;
+  border: 2px solid #333;
+  margin: 6px;
+}
+
+.btn-secondary:hover {
+  color: #fff;
+  border-color: #fff;
+}
+
+/* Panel de controles en el menú principal */
+.controls-panel {
+  display: flex;
+  gap: 32px;
+  margin-top: 36px;
+}
+
+.ctrl-card {
+  padding: 16px 20px;
+  border: 1px solid #222;
+  background: rgba(255, 255, 255, .03);
+  text-align: center;
+  min-width: 180px;
+}
+
+.ctrl-card h3 { font-size: 9px; margin-bottom: 14px; }
+.ctrl-card p  { font-size: 7px; color: #666; line-height: 2; }
+.ctrl-p1 h3   { color: #44aaff; }
+.ctrl-p2 h3   { color: #ff4444; }
+
+/*MENÚ DE PAUSA*/
+#pause-menu {
+  background: rgba(5, 5, 20, .96);
+  backdrop-filter: blur(4px);
+}
+
+.pause-title {
+  font-size: 26px;
+  color: #44aaff;
+  text-shadow: 0 0 20px #44aaff;
+  margin-bottom: 36px;
+}
+
+.slider-row { width: 320px; margin: 14px 0; }
+
+.slider-row label {
+  display: block;
+  font-size: 8px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.slider-row input[type=range] {
+  width: 100%;
+  accent-color: #44aaff;
+}
+
+.diff-row { display: flex; gap: 8px; margin: 8px 0; }
+
+.diff-btn,
+.powerup-btn {
+  font-family: 'Press Start 2P', monospace;
+  padding: 8px 14px;
+  font-size: 7px;
+  cursor: pointer;
+  border: 2px solid #333;
+  background: transparent;
+  color: #555;
+}
+
+.diff-btn.active,
+.powerup-btn.active {
+  border-color: #44aaff;
+  color: #44aaff;
+  background: rgba(68, 170, 255, .08);
+}
+
+.pause-btns { display: flex; gap: 16px; margin-top: 32px; }
+
+/*PANTALLA DE GAME OVER*/
+#gameover {
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, #1a0000 0%, #080810 100%);
+}
+
+.go-title {
+  font-size: 36px;
+  color: #ff2222;
+  text-shadow: 0 0 30px #ff2222;
+  margin-bottom: 20px;
+  animation: goShake .6s ease;
+}
+
+@keyframes goShake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-8px) rotate(-2deg); }
+  40%       { transform: translateX( 8px) rotate( 2deg); }
+  60%       { transform: translateX(-5px); }
+  80%       { transform: translateX( 5px); }
+}
+
+.winner-text { font-size: 14px; margin-bottom: 44px; }
+.w-p1        { color: #44aaff; }
+.w-p2        { color: #ff4444; }
+.w-draw      { color: #ffcc00; }
+
+/* ── MENÚ ONLINE ── */
+.online-input {
+  font-family: 'Press Start 2P', monospace;
+  padding: 12px 16px;
+  font-size: 10px;
+  background: rgba(255, 255, 255, .05);
+  border: 2px solid #ffcc00;
+  color: #fff;
+  margin: 8px 0;
+  width: 280px;
+  text-align: center;
+  outline: none;
+}
+
+.online-input:focus {
+  border-color: #fff;
+  background: rgba(255, 255, 255, .1);
+}
+
+.online-input::placeholder {
+  color: #666;
+}
+
+#rooms-list {
+  border: 1px solid #333;
+  padding: 12px;
+  background: rgba(0, 0, 0, .3);
+}
+
+.room-item {
+  padding: 10px;
+  margin: 8px 0;
+  background: rgba(68, 170, 255, .1);
+  border: 1px solid #44aaff;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.room-item:hover {
+  background: rgba(68, 170, 255, .2);
+  transform: scale(1.02);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
