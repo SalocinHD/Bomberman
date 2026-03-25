@@ -473,7 +473,8 @@ class Player {
     sfx('death');
     updateHUD();
    
-    checkWin();
+    if (this.lives == 0) checkWin(true);
+      else checkWin();
   }
 
   draw() {
