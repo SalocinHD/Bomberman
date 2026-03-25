@@ -2,225 +2,257 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>BomberDuo</title>
-
-  <!-- Fuente pixel-art retro -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-
-  <!-- Hoja de estilos principal -->
   <link rel="stylesheet" href="style.css">
-
-  <!-- Socket.IO client -->
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <!-- PeerJS — P2P sin servidor, funciona en GitHub Pages -->
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
 
 <div id="wrapper">
 
-  <!-- ══════════════════════════════════════════════════════════
-       HUD INGAME (overlay HTML por encima del canvas)
-  ══════════════════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════════════════
+       HUD INGAME
+  ══════════════════════════════════════════════════════ -->
   <div id="hud" class="hidden">
-
-    <!-- Stats Jugador 1 -->
     <div class="phud p1hud">
       <span class="phud-name">🟦 P1</span>
       <span class="phud-lives" id="p1-lives">❤❤❤</span>
-      <span class="phud-stats" id="p1-stats">💣×1  🔥×1  ⚡×1</span>
+      <span class="phud-stats" id="p1-stats">💣×1 🔥×1 ⚡×1</span>
     </div>
-
-    <!-- Temporizador central -->
     <div id="hud-center">
       <div id="game-timer">3:00</div>
       <div id="hud-label">ESC → PAUSA</div>
     </div>
-
-    <!-- Stats Jugador 2 -->
     <div class="phud p2hud">
       <span class="phud-name">P2 🟥</span>
       <span class="phud-lives" id="p2-lives">❤❤❤</span>
-      <span class="phud-stats" id="p2-stats">💣×1  🔥×1  ⚡×1</span>
+      <span class="phud-stats" id="p2-stats">💣×1 🔥×1 ⚡×1</span>
     </div>
+  </div>
 
-  </div><!-- /#hud -->
-
-
-  <!-- ══════════════════════════════════════════════════════════
-       ÁREA DE JUEGO: canvas + overlays apilados
-  ══════════════════════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════════════════
+       ÁREA DE JUEGO
+  ══════════════════════════════════════════════════════ -->
   <div id="game-area">
-
-    <!-- Canvas principal del juego -->
     <canvas id="game" width="720" height="624"></canvas>
-
-    <!-- Efecto CRT de scanlines -->
     <div id="scanlines"></div>
 
-
-    <!-- ── MENÚ PRINCIPAL ─────────────────────────────────── -->
+    <!-- ────────────────────────────────────────
+         MENÚ PRINCIPAL
+    ──────────────────────────────────────── -->
     <div id="main-menu" class="overlay">
-
-      <div class="title-wrap">
-        <div class="game-title">BOMBERDUO</div>
-      </div>
-
+      <div class="game-title">BOMBERDUO</div>
       <div class="game-subtitle">★ DYNA BLASTER STYLE ★</div>
 
-      <button class="btn btn-primary" onclick="startGame()">▶ JUGAR</button>
+      <!-- Selector de plataforma -->
+      <div class="platform-row">
+        <button class="plat-btn active" id="btn-pc"     onclick="selectPlatform('pc')">🖥️ PC</button>
+        <button class="plat-btn"        id="btn-mobile" onclick="selectPlatform('mobile')">📱 MÓVIL</button>
+      </div>
 
-      <!-- Panel de controles -->
-      <div class="controls-panel">
+      <!-- Botones de modo -->
+      <div class="menu-btns">
+        <button class="btn btn-primary" onclick="showModeMenu()">▶ JUGAR LOCAL</button>
+        <button class="btn btn-primary online-btn" onclick="showOnlineMenu()">🌐 JUGAR ONLINE</button>
+      </div>
 
+      <!-- Info controles PC -->
+      <div class="controls-panel" id="pc-controls">
         <div class="ctrl-card ctrl-p1">
           <h3>🟦 JUGADOR 1</h3>
-          <p>W A S D Mover<br>ESPACIO → Bomba</p>
+          <p>W A S D → Mover<br>ESPACIO → Bomba</p>
         </div>
-
         <div class="ctrl-card ctrl-p2">
-          <h3>P2 🟥</h3>
-          <p>↑ ↓ ← → Mover<br>ENTER → Bomba</p>
+          <h3>🟥 JUGADOR 2</h3>
+          <p>↑ ↓ ← → → Mover<br>ENTER → Bomba</p>
         </div>
+      </div>
+      <!-- Info controles Móvil -->
+      <div class="controls-panel hidden" id="mobile-controls">
+        <div class="ctrl-card" style="min-width:300px;">
+          <h3 style="color:#ffcc00;">📱 CONTROLES TÁCTILES</h3>
+          <p>Cada jugador tiene su propio<br>D-pad y botón de bomba</p>
+        </div>
+      </div>
+    </div>
 
-      </div><!-- /.controls-panel -->
-
-    </div><!-- /#main-menu -->
-
-
-    <!--MENÚ DE MODO-->
+    <!-- ────────────────────────────────────────
+         MENÚ MODO (Local / Locura)
+    ──────────────────────────────────────── -->
     <div id="mode-menu" class="overlay hidden">
-
-      <div class="title-wrap">
-        <div class="game-title" style="font-size: 36px;">BOMBERDUO</div>
-      </div>
-
-      <div class="game-subtitle">Elige modo de juego</div>
-
-      <button class="btn btn-primary" onclick="setGameMode('local')" style="margin-bottom: 20px;">🎮 LOCAL</button>
-      <button class="btn btn-primary" onclick="setGameMode('locura')" style="margin-bottom: 20px;">🤯 LOCURA</button>
-      <button class="btn btn-primary" onclick="showOnlineMenu()" style="">🌐 ONLINE</button>
-
-    </div><!-- /#mode-menu -->
-
-
-    <!-- ── MENÚ ONLINE ──────────────────────────────────── -->
-    <div id="online-menu" class="overlay hidden">
-
-      <div class="game-title" style="font-size: 32px;">ONLINE</div>
-
-      <div style="margin-bottom: 30px;">
-        <input type="text" id="player-name" placeholder="Tu nombre" class="online-input" maxlength="12">
-      </div>
-
-      <button class="btn btn-primary" onclick="createOnlineRoom()" style="margin-bottom: 15px;">➕ CREAR SALA</button>
-      <button class="btn btn-primary" onclick="showJoinMenu()" style="margin-bottom: 15px;">🔍 UNIRSE</button>
+      <div class="game-title" style="font-size:32px;">MODO LOCAL</div>
+      <div class="game-subtitle">¿Cómo queréis jugar?</div>
+      <button class="btn btn-primary" onclick="setGameMode('local')"  style="margin-bottom:16px;">🎮 NORMAL</button>
+      <button class="btn btn-primary" onclick="setGameMode('locura')" style="margin-bottom:16px;">🤯 LOCURA (power-ups x4)</button>
       <button class="btn btn-secondary" onclick="goToMenu()">↩ ATRÁS</button>
+    </div>
 
-    </div><!-- /#online-menu -->
+    <!-- ────────────────────────────────────────
+         MENÚ ONLINE
+    ──────────────────────────────────────── -->
+    <div id="online-menu" class="overlay hidden">
+      <div class="game-title" style="font-size:30px;">🌐 ONLINE</div>
+      <div class="game-subtitle" style="margin-bottom:20px;">Hasta 4 jugadores • Sin servidor</div>
 
-
-    <!-- ── MENÚ UNIRSE A SALA ──────────────────────────────── -->
-    <div id="join-menu" class="overlay hidden">
-
-      <div class="game-title" style="font-size: 28px;">SALAS DISPONIBLES</div>
-
-      <div id="rooms-list" style="margin: 20px 0; max-height: 200px; overflow-y: auto; min-width: 300px;">
-        <p style="color: #888;">Cargando salas...</p>
+      <div class="online-field">
+        <label>TU NOMBRE</label>
+        <input type="text" id="player-name" class="online-input" placeholder="Bombero..." maxlength="10">
       </div>
 
-      <input type="text" id="room-id-input" placeholder="O introduce Room ID" class="online-input" maxlength="9">
-      <button class="btn btn-primary" onclick="joinRoomById()" style="margin-top: 15px; margin-bottom: 15px;">✓ UNIRSE</button>
+      <button class="btn btn-primary" onclick="createRoom()"    style="margin-bottom:12px;">➕ CREAR SALA</button>
+      <button class="btn btn-primary" onclick="showJoinMenu()"  style="margin-bottom:12px;">🔍 UNIRSE A SALA</button>
+      <button class="btn btn-secondary" onclick="goToMenu()">↩ ATRÁS</button>
+      <div id="online-status" class="online-status"></div>
+    </div>
+
+    <!-- ────────────────────────────────────────
+         MENÚ UNIRSE
+    ──────────────────────────────────────── -->
+    <div id="join-menu" class="overlay hidden">
+      <div class="game-title" style="font-size:26px;">UNIRSE A SALA</div>
+
+      <div class="online-field" style="margin:20px 0 8px;">
+        <label>CÓDIGO DE SALA (6 caracteres)</label>
+        <input type="text" id="room-code-input" class="online-input"
+               placeholder="ABC123" maxlength="6"
+               oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+      </div>
+
+      <button class="btn btn-primary"   onclick="joinRoomByCode()" style="margin-bottom:12px;">✓ UNIRSE</button>
       <button class="btn btn-secondary" onclick="showOnlineMenu()">↩ ATRÁS</button>
+      <div id="join-status" class="online-status"></div>
+    </div>
 
-    </div><!-- /#join-menu -->
-
-
-    <!-- ── MENÚ ESPERANDO OPONENTE ──────────────────────────── -->
+    <!-- ────────────────────────────────────────
+         SALA DE ESPERA — HOST
+    ──────────────────────────────────────── -->
     <div id="waiting-menu" class="overlay hidden">
+      <div class="game-title" style="font-size:24px;">SALA DE ESPERA</div>
 
-      <div class="game-title" style="font-size: 28px;">ESPERANDO...</div>
+      <div class="room-code-display">
+        <div class="room-code-label">CÓDIGO DE SALA</div>
+        <div class="room-code-value" id="room-code-show">------</div>
+        <div class="room-code-hint">Comparte este código con tus amigos</div>
+      </div>
 
-      <p style="color: #ffcc00; margin: 30px 0; font-size: 12px;">
-        Sala: <span id="waiting-room-id" style="font-weight: bold;">-</span>
-      </p>
-      
-      <p style="color: #888; margin-bottom: 30px; font-size: 9px;">
-        Comparte el ID con tu amigo
-      </p>
+      <div class="lobby-players" id="lobby-host-slots">
+        <div class="lobby-slot filled" id="host-slot">🟦 TÚ (host) — <span id="host-name-label">...</span></div>
+        <div class="lobby-slot empty"  id="guest-slot-1">⬜ Esperando jugador 2...</div>
+        <div class="lobby-slot empty"  id="guest-slot-2">⬜ Esperando jugador 3...</div>
+        <div class="lobby-slot empty"  id="guest-slot-3">⬜ Esperando jugador 4...</div>
+      </div>
 
-      <div id="waiting-animation" style="margin: 30px 0; animation: pulse 1s infinite;">⏱</div>
+      <div style="display:flex;gap:12px;margin-top:18px;">
+        <button class="btn btn-secondary" onclick="cancelRoom()">✕ CANCELAR</button>
+        <button class="btn btn-primary"   id="start-online-btn" onclick="startOnlineGame()" disabled>▶ INICIAR</button>
+      </div>
+      <div style="font-size:7px;color:#555;margin-top:8px;">Mínimo 2 jugadores para iniciar</div>
+    </div>
 
-      <button class="btn btn-secondary" onclick="cancelOnlineGame()">✕ CANCELAR</button>
+    <!-- ────────────────────────────────────────
+         SALA DE ESPERA — GUEST
+    ──────────────────────────────────────── -->
+    <div id="guest-waiting" class="overlay hidden">
+      <div class="game-title" style="font-size:24px;">CONECTADO</div>
+      <div class="room-code-display">
+        <div class="room-code-label">SALA</div>
+        <div class="room-code-value" id="guest-room-show">------</div>
+      </div>
+      <div class="lobby-players" id="guest-lobby-slots">
+        <div class="lobby-slot empty">Cargando jugadores...</div>
+      </div>
+      <div id="guest-wait-status" style="font-size:8px;color:#ffcc00;margin-top:12px;animation:blink 1s infinite;">Esperando al host...</div>
+      <button class="btn btn-secondary" style="margin-top:16px;" onclick="cancelRoom()">✕ SALIR</button>
+    </div>
 
-    </div><!-- /#waiting-menu -->
-
-
-    <!-- ── MENÚ DE PAUSA ──────────────────────────────────── -->
+    <!-- ────────────────────────────────────────
+         MENÚ DE PAUSA
+    ──────────────────────────────────────── -->
     <div id="pause-menu" class="overlay hidden">
-
       <div class="pause-title">⏸ PAUSA</div>
 
-      <!-- Control de volumen -->
       <div class="slider-row">
         <label>VOLUMEN: <span id="vol-val">70</span>%</label>
-        <input type="range" id="vol-slider" min="0" max="100" value="70"
-               oninput="setVolume(this.value)">
+        <input type="range" id="vol-slider" min="0" max="100" value="70" oninput="setVolume(this.value)">
       </div>
 
-      <!-- Selector de dificultad -->
       <div class="slider-row">
         <label>DIFICULTAD (densidad de bloques)</label>
         <div class="diff-row">
-          <button class="diff-btn"        onclick="setDiff(.45, this)">FÁCIL</button>
-          <button class="diff-btn active" onclick="setDiff(.7,  this)">NORMAL</button>
-          <button class="diff-btn"        onclick="setDiff(.88, this)">DIFÍCIL</button>
+          <button class="diff-btn"        onclick="setDiff(.45,this)">FÁCIL</button>
+          <button class="diff-btn active" onclick="setDiff(.7, this)">NORMAL</button>
+          <button class="diff-btn"        onclick="setDiff(.88,this)">DIFÍCIL</button>
         </div>
       </div>
 
-      <!-- Selector de probabilidad de power-ups -->
       <div class="slider-row">
         <label>POWER-UPS (probabilidad de caída)</label>
         <div class="diff-row">
-          <button class="powerup-btn"        onclick="setPowerupChance(.15, this)">RARA</button>
-          <button class="powerup-btn active" onclick="setPowerupChance(.30, this)">NORMAL</button>
-          <button class="powerup-btn"        onclick="setPowerupChance(.55, this)">FRECUENTE</button>
-          <button class="powerup-btn"        onclick="setPowerupChance(1.0, this)">LOCURA</button>
+          <button class="powerup-btn"        onclick="setPowerupChance(.15,this)">RARA</button>
+          <button class="powerup-btn active" onclick="setPowerupChance(.30,this)">NORMAL</button>
+          <button class="powerup-btn"        onclick="setPowerupChance(.55,this)">FRECUENTE</button>
+          <button class="powerup-btn"        onclick="setPowerupChance(1.0,this)">LOCURA</button>
         </div>
       </div>
 
-      <!-- Botones de pausa -->
       <div class="pause-btns">
         <button class="btn btn-secondary" onclick="goToMenu()">🏠 MENÚ</button>
         <button class="btn btn-primary"   onclick="resumeGame()">▶ CONTINUAR</button>
       </div>
+    </div>
 
-    </div><!-- /#pause-menu -->
-
-
-    <!-- ── PANTALLA DE GAME OVER ──────────────────────────── -->
+    <!-- ────────────────────────────────────────
+         GAME OVER
+    ──────────────────────────────────────── -->
     <div id="gameover" class="overlay hidden">
-
       <div class="go-title">GAME OVER</div>
-
       <div class="winner-text" id="winner-text"></div>
-
-      <button class="btn btn-primary"   onclick="startGame()" style="margin-bottom:14px">
-        🔄 REVANCHA
-      </button>
-      <button class="btn btn-secondary" onclick="goToMenu()">
-        🏠 MENÚ PRINCIPAL
-      </button>
-
-    </div><!-- /#gameover -->
+      <button class="btn btn-primary"   onclick="startGame()" style="margin-bottom:14px;">🔄 REVANCHA</button>
+      <button class="btn btn-secondary" onclick="goToMenu()">🏠 MENÚ PRINCIPAL</button>
+    </div>
 
   </div><!-- /#game-area -->
-
 </div><!-- /#wrapper -->
 
+<!-- ══════════════════════════════════════════════════════════
+     CONTROLES TÁCTILES MÓVIL
+     Posicionados fuera del wrapper para cubrir la pantalla completa
+══════════════════════════════════════════════════════════ -->
+<div id="mobile-overlay" class="hidden">
 
-<!-- Lógica del juego -->
-<script src="online-game.js"></script>
+  <!-- D-pad izquierdo — Jugador 1 -->
+  <div class="touch-pad pad-left" id="pad-p1">
+    <div class="pad-label p1-color">P1</div>
+    <div class="dpad">
+      <button class="dpad-btn dpad-up"    data-player="1" data-dir="up">▲</button>
+      <button class="dpad-btn dpad-left"  data-player="1" data-dir="left">◀</button>
+      <button class="dpad-btn dpad-center"></button>
+      <button class="dpad-btn dpad-right" data-player="1" data-dir="right">▶</button>
+      <button class="dpad-btn dpad-down"  data-player="1" data-dir="down">▼</button>
+    </div>
+    <button class="bomb-btn p1-bomb" data-player="1">💣</button>
+  </div>
+
+  <!-- D-pad derecho — Jugador 2 -->
+  <div class="touch-pad pad-right" id="pad-p2">
+    <div class="pad-label p2-color">P2</div>
+    <div class="dpad">
+      <button class="dpad-btn dpad-up"    data-player="2" data-dir="up">▲</button>
+      <button class="dpad-btn dpad-left"  data-player="2" data-dir="left">◀</button>
+      <button class="dpad-btn dpad-center"></button>
+      <button class="dpad-btn dpad-right" data-player="2" data-dir="right">▶</button>
+      <button class="dpad-btn dpad-down"  data-player="2" data-dir="down">▼</button>
+    </div>
+    <button class="bomb-btn p2-bomb" data-player="2">💣</button>
+  </div>
+
+</div><!-- /#mobile-overlay -->
+
 <script src="game.js"></script>
+<script src="online.js"></script>
 
 </body>
 </html>
