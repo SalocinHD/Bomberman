@@ -2,166 +2,197 @@
 //  BomberDuo — Multijugador Online (PeerJS P2P)
 //
 //  ARQUITECTURA:
-//  • El Host crea una "sala" con un código de 6 caracteres.
-//  • Los Guests se conectan al Host usando ese código.
-//  • El Host es la AUTORIDAD: ejecuta la simulación completa
-//    y envía el estado a los guests cada frame.
-//  • Los Guests sólo envían sus inputs al Host.
-//  • Funciona sin servidor — PeerJS usa un servidor STUN público
-//    de Cloudflare que ya está incluido en la librería.
+//  • Host crea sala → recibe código de 6 chars → lo comparte.
+//  • Guest introduce el código → se conecta directamente al Host.
+//  • Host es la AUTORIDAD: ejecuta toda la simulación y envía
+//    el estado completo a los guests cada ~50 ms.
+//  • Guests sólo envían su dirección de movimiento al Host.
 //
-//  MENSAJES (todos son JSON):
-//    host→guest  { type:'state',  map, players, bombs, explosions, powerups, gameTime }
-//    host→guest  { type:'start',  map, numPlayers, playerIndex }
-//    host→guest  { type:'lobby',  slots }
-//    guest→host  { type:'input',  dir, bomb, playerIndex }
-//    guest→host  { type:'join',   name }
+//  SERVIDOR DE SEÑALIZACIÓN:
+//  Usamos el servidor público de PeerJS (0.peerjs.com) con
+//  configuración explícita para evitar fallos del broker por
+//  defecto. NO se necesita cuenta ni servidor propio.
 // ═══════════════════════════════════════════════════════════════
 
 // ── Estado online ──
-let peer         = null;   // instancia PeerJS
-let isHost       = false;
-let myRoomCode   = '';
-let myPlayerIndex = 0;     // 0=P1(host), 1=P2, 2=P3, 3=P4
+let peer          = null;
+let isHost        = false;
+let myRoomCode    = '';
+let myPlayerIndex = 0;   // 0 = host (P1), 1-3 = guests
 
-// Conexiones activas:
-//   Host  → conns[i] = DataConnection con el guest i
-//   Guest → conns[0] = DataConnection con el host
+// Host  → conns[i] = DataConnection al guest i
+// Guest → conns[0] = DataConnection al host
 let conns = [];
 
-// Info del lobby
-const guestNames = {};   // { playerIndex: name }
-let hostName     = '';
-
-// Estado del input local del guest
-const guestInput = { dir: null, bomb: false };
+const guestNames = {};
+let hostName = '';
 let guestInputInterval = null;
+let syncInterval       = null;
+
+// ─────────────────────────────────────────────────────────────
+//  CONFIGURACIÓN DEL SERVIDOR PEERJS
+//  Usamos el servidor público oficial con HTTPS/WSS.
+// ─────────────────────────────────────────────────────────────
+const PEER_CONFIG = {
+  host:   '0.peerjs.com',
+  port:    443,
+  path:   '/',
+  secure:  true,
+  debug:   0,
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
+    ]
+  }
+};
 
 // ─────────────────────────────────────────────────────────────
 //  UTILIDADES
 // ─────────────────────────────────────────────────────────────
-
-/** Genera un código de sala de 6 caracteres alfanumérico */
 function generateRoomCode() {
+  // Evitamos caracteres confusos: 0/O, 1/I
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   return Array.from({length:6}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
 }
 
-/** ID de peer del host a partir del código de sala */
-function roomCodeToPeerId(code) {
-  return 'bomberduo-room-' + code.toUpperCase();
+// El peer ID del host se construye como: bd-<CODE> (corto y sin caracteres raros)
+function codeToPeerId(code) {
+  return 'bd-' + code.toUpperCase();
 }
 
-/** Muestra un mensaje de estado en el menú activo */
-function setOnlineStatus(msg, isError=false) {
-  ['online-status','join-status'].forEach(id => {
+function setOnlineStatus(msg, isError = false) {
+  ['online-status', 'join-status'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.textContent = msg; el.style.color = isError ? '#ff4444' : '#ff8800'; }
+    if (!el) return;
+    el.textContent  = msg;
+    el.style.color  = isError ? '#ff4444' : '#ff8800';
   });
 }
 
-/** Obtiene el nombre del jugador local */
 function getLocalName() {
-  return (document.getElementById('player-name')?.value || 'Bombero').trim() || 'Bombero';
+  return (document.getElementById('player-name')?.value || '').trim() || 'Bombero';
 }
 
 // ─────────────────────────────────────────────────────────────
-//  INICIALIZAR PEER
+//  CREAR UN PEER  (promesa que resuelve cuando el broker confirma)
 // ─────────────────────────────────────────────────────────────
-function initPeer(peerId) {
+function makePeer(peerId) {
   return new Promise((resolve, reject) => {
-    // Destruir peer anterior si existe
-    if (peer) { try { peer.destroy(); } catch(e){} }
+    // Destruir instancia anterior limpiamente
+    if (peer) {
+      try { peer.destroy(); } catch(_) {}
+      peer = null;
+    }
 
-    peer = new Peer(peerId, {
-      // PeerJS usa servidores STUN de Google por defecto — funciona sin cuenta
-      debug: 0
-    });
+    const p = peerId
+      ? new Peer(peerId, PEER_CONFIG)
+      : new Peer(PEER_CONFIG);          // ID aleatorio para guests
 
-    peer.on('open', id => {
-      console.log('[PeerJS] Peer abierto con ID:', id);
-      resolve(id);
-    });
+    let settled = false;
+    const done = (fn, val) => { if (!settled) { settled = true; fn(val); } };
 
-    peer.on('error', err => {
-      console.error('[PeerJS] Error:', err);
-      // ID ya en uso = sala ya existe
+    p.on('open',  id  => { peer = p; done(resolve, id); });
+    p.on('error', err => {
+      console.error('[PeerJS] error:', err.type, err.message);
+      // unavailable-id = código ya en uso → el host reintenta con otro código
       if (err.type === 'unavailable-id') {
-        reject(new Error('El código de sala ya existe. Prueba otro.'));
+        done(reject, new Error('ID_TAKEN'));
       } else if (err.type === 'peer-unavailable') {
-        reject(new Error('Sala no encontrada. Comprueba el código.'));
+        done(reject, new Error('PEER_NOT_FOUND'));
+      } else if (err.type === 'network' || err.type === 'server-error') {
+        done(reject, new Error('NETWORK'));
       } else {
-        reject(new Error('Error de conexión: ' + err.message));
+        // Errores no fatales (p.ej. conexión individual fallida) — NO rechazar
+        console.warn('[PeerJS] error no fatal:', err.type);
       }
     });
+
+    // Timeout de seguridad: si el broker tarda más de 12 s → error
+    setTimeout(() => done(reject, new Error('TIMEOUT')), 12000);
   });
 }
 
 // ─────────────────────────────────────────────────────────────
-//  CREAR SALA (Host)
+//  CREAR SALA  (Host)
 // ─────────────────────────────────────────────────────────────
 async function createRoom() {
   hostName = getLocalName();
-  if (!hostName) { setOnlineStatus('Escribe tu nombre primero', true); return; }
+  setOnlineStatus('Conectando al servidor...');
 
-  setOnlineStatus('Conectando...');
-  const code = generateRoomCode();
-
-  try {
-    await initPeer(roomCodeToPeerId(code));
-  } catch(e) {
-    setOnlineStatus(e.message, true); return;
+  // Intentar hasta 5 códigos distintos por si hay colisión
+  let code, attempt = 0;
+  while (attempt < 5) {
+    code = generateRoomCode();
+    try {
+      await makePeer(codeToPeerId(code));
+      break;                            // éxito
+    } catch(e) {
+      if (e.message === 'ID_TAKEN') {
+        attempt++; continue;            // probar con otro código
+      }
+      const msgs = {
+        TIMEOUT: 'No se pudo conectar al servidor (timeout). Comprueba tu conexión.',
+        NETWORK:  'Error de red. Comprueba tu conexión a internet.',
+      };
+      setOnlineStatus(msgs[e.message] || 'Error: ' + e.message, true);
+      return;
+    }
   }
+  if (attempt >= 5) { setOnlineStatus('No se pudo crear sala. Inténtalo de nuevo.', true); return; }
 
-  isHost      = true;
-  myRoomCode  = code;
+  isHost        = true;
+  myRoomCode    = code;
   myPlayerIndex = 0;
 
-  // El host escucha conexiones entrantes
   peer.on('connection', conn => handleGuestConnection(conn));
 
-  // Mostrar sala de espera
   document.getElementById('online-menu').classList.add('hidden');
   document.getElementById('waiting-menu').classList.remove('hidden');
-  document.getElementById('room-code-show').textContent = code;
-  document.getElementById('host-name-label').textContent = hostName;
+  document.getElementById('room-code-show').textContent   = code;
+  document.getElementById('host-name-label').textContent  = hostName;
 
   updateHostLobby();
-  console.log('[Host] Sala creada:', code);
+  setOnlineStatus('');
+  console.log('[Host] Sala lista. Código:', code, '| Peer ID:', peer.id);
 }
 
-/** El host gestiona una nueva conexión de un guest */
+// ─────────────────────────────────────────────────────────────
+//  GESTIONAR CONEXIÓN DE UN GUEST  (lado Host)
+// ─────────────────────────────────────────────────────────────
 function handleGuestConnection(conn) {
-  const slot = conns.length + 1; // índice del guest (1-3)
-  if (slot >= 4) { conn.close(); return; } // sala llena
+  const slot = conns.length + 1;       // 1, 2, 3
+  if (slot >= 4) { conn.close(); return; }
 
   conns.push(conn);
-  console.log('[Host] Guest conectado en slot', slot);
+  console.log('[Host] Guest conectando en slot', slot);
 
   conn.on('open', () => {
-    // Comunicar al guest su índice de jugador
+    console.log('[Host] Guest abierto, slot', slot);
     conn.send({ type: 'welcome', playerIndex: slot });
     updateHostLobby();
   });
 
   conn.on('data', data => {
     if (data.type === 'join') {
-      // El guest nos dice su nombre
       guestNames[slot] = data.name;
       updateHostLobby();
-      // Reenviar lobby actualizado a todos
       broadcastLobby();
     }
     if (data.type === 'input' && GS === 'playing') {
-      // Aplicar input del guest a su jugador
       const p = players[data.playerIndex];
       if (p) applyGuestInput(p, data);
+    }
+    if (data.type === 'bomb' && GS === 'playing') {
+      const p = players[data.playerIndex];
+      if (p) placeBomb(p);
     }
   });
 
   conn.on('close', () => {
-    // Guest desconectado
-    conns.splice(conns.indexOf(conn), 1);
+    const idx = conns.indexOf(conn);
+    if (idx !== -1) conns.splice(idx, 1);
     delete guestNames[slot];
     updateHostLobby();
     broadcastLobby();
@@ -171,72 +202,88 @@ function handleGuestConnection(conn) {
   conn.on('error', err => console.error('[Host] Error con guest:', err));
 }
 
-/** Actualiza los slots visuales en la sala de espera del host */
 function updateHostLobby() {
-  const slotIds  = ['guest-slot-1','guest-slot-2','guest-slot-3'];
-  const classes  = ['p2','p3','p4'];
-  const emojis   = ['🟥','🟩','🟧'];
+  const slotIds = ['guest-slot-1','guest-slot-2','guest-slot-3'];
+  const classes = ['p2','p3','p4'];
+  const emojis  = ['🟥','🟩','🟧'];
 
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById(slotIds[i]);
     if (!el) continue;
-    const guestIdx = i + 1;
     if (conns[i]) {
-      const name = guestNames[guestIdx] || `Jugador ${guestIdx+1}`;
+      const name = guestNames[i+1] || `Jugador ${i+2}`;
       el.textContent = `${emojis[i]} ${name}`;
       el.className   = `lobby-slot ${classes[i]}`;
     } else {
-      el.textContent = `⬜ Esperando jugador ${guestIdx+1}...`;
+      el.textContent = `⬜ Esperando jugador ${i+2}...`;
       el.className   = 'lobby-slot empty';
     }
   }
 
-  // Habilitar botón de inicio si hay al menos 1 guest
   const btn = document.getElementById('start-online-btn');
   if (btn) {
-    btn.disabled = conns.length < 1;
+    btn.disabled      = conns.length < 1;
     btn.style.opacity = conns.length >= 1 ? '1' : '0.35';
   }
 }
 
-/** Envía el estado actual del lobby a todos los guests */
 function broadcastLobby() {
   const slots = [hostName, ...Object.values(guestNames)];
-  conns.forEach(c => {
-    try { c.send({ type:'lobby', slots }); } catch(e){}
-  });
+  conns.forEach(c => { try { c.send({ type:'lobby', slots }); } catch(_){} });
 }
 
 // ─────────────────────────────────────────────────────────────
-//  UNIRSE A SALA (Guest)
+//  UNIRSE A SALA  (Guest)
 // ─────────────────────────────────────────────────────────────
 async function joinRoomByCode() {
-  const code = document.getElementById('room-code-input')?.value?.trim().toUpperCase();
-  if (!code || code.length !== 6) { setOnlineStatus('Código inválido (6 caracteres)', true); return; }
+  const raw  = document.getElementById('room-code-input')?.value || '';
+  const code = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+  if (code.length !== 6) {
+    setOnlineStatus('El código debe tener 6 caracteres', true); return;
+  }
 
   const guestName = getLocalName();
-  setOnlineStatus('Conectando...');
+  setOnlineStatus('Conectando al servidor...');
 
+  // Crear peer con ID aleatorio para el guest
   try {
-    // ID aleatorio para el guest
-    await initPeer('bomberduo-guest-' + Math.random().toString(36).slice(2,8));
+    await makePeer(null);
   } catch(e) {
-    setOnlineStatus('No se pudo inicializar conexión', true); return;
+    const msgs = {
+      TIMEOUT: 'No se pudo conectar al servidor (timeout).',
+      NETWORK: 'Error de red. Comprueba tu conexión.',
+    };
+    setOnlineStatus(msgs[e.message] || 'Error al conectar: ' + e.message, true);
+    return;
   }
 
   isHost     = false;
   myRoomCode = code;
 
-  // Conectar al peer del host
-  const conn = peer.connect(roomCodeToPeerId(code), { reliable: true });
+  setOnlineStatus('Buscando sala...');
+  console.log('[Guest] Mi peer ID:', peer.id, '| Conectando a:', codeToPeerId(code));
+
+  const conn = peer.connect(codeToPeerId(code), {
+    reliable:    true,
+    serialization: 'json',
+  });
   conns = [conn];
 
-  conn.on('open', () => {
-    console.log('[Guest] Conectado al host');
-    conn.send({ type: 'join', name: guestName });
-    setOnlineStatus('Conectado. Esperando host...');
+  // Timeout si no se abre en 10 s
+  const connTimeout = setTimeout(() => {
+    if (conn.open) return;
+    setOnlineStatus('Sala no encontrada o sin respuesta. Comprueba el código.', true);
+    try { conn.close(); } catch(_){}
+    conns = [];
+  }, 10000);
 
-    // Mostrar sala de espera del guest
+  conn.on('open', () => {
+    clearTimeout(connTimeout);
+    console.log('[Guest] Conexión abierta con host');
+    conn.send({ type: 'join', name: guestName });
+    setOnlineStatus('¡Conectado! Esperando al host...');
+
     document.getElementById('join-menu').classList.add('hidden');
     document.getElementById('guest-waiting').classList.remove('hidden');
     document.getElementById('guest-room-show').textContent = code;
@@ -247,50 +294,43 @@ async function joinRoomByCode() {
       myPlayerIndex = data.playerIndex;
       console.log('[Guest] Soy jugador', myPlayerIndex + 1);
     }
-    if (data.type === 'lobby') {
-      updateGuestLobby(data.slots);
-    }
-    if (data.type === 'start') {
-      receiveGameStart(data);
-    }
-    if (data.type === 'state') {
-      receiveGameState(data);
-    }
+    if (data.type === 'lobby')  updateGuestLobby(data.slots);
+    if (data.type === 'start')  receiveGameStart(data);
+    if (data.type === 'state')  receiveGameState(data);
+    if (data.type === 'gameover') endGame(data.winnerId);
   });
 
   conn.on('close', () => {
-    setOnlineStatus('Desconectado del host', true);
-    if (GS !== 'playing') goToMenu();
+    console.warn('[Guest] Conexión cerrada');
+    if (GS !== 'playing') {
+      setOnlineStatus('Desconectado del host.', true);
+    }
   });
 
   conn.on('error', err => {
-    setOnlineStatus('Sala no encontrada o llena', true);
-    console.error('[Guest] Error:', err);
-  });
-
-  // Timeout si no hay respuesta
-  setTimeout(() => {
-    if (GS !== 'playing' && document.getElementById('guest-waiting').classList.contains('hidden')) {
-      setOnlineStatus('No se encontró la sala. Comprueba el código.', true);
+    clearTimeout(connTimeout);
+    console.error('[Guest] Error de conexión:', err);
+    if (err.type === 'peer-unavailable') {
+      setOnlineStatus('Sala no encontrada. Comprueba el código.', true);
+    } else {
+      setOnlineStatus('Error de conexión: ' + err.type, true);
     }
-  }, 8000);
+  });
 }
 
-/** Actualiza el lobby visual del guest */
 function updateGuestLobby(slots) {
   const container = document.getElementById('guest-lobby-slots');
   if (!container) return;
   const emojis  = ['🟦','🟥','🟩','🟧'];
-  const classes  = ['p1','p2','p3','p4'];  // reutilizamos clases de CSS
-
+  const classes  = ['filled','p2','p3','p4'];
   container.innerHTML = '';
   for (let i = 0; i < 4; i++) {
     const div = document.createElement('div');
     if (slots[i]) {
-      div.className = `lobby-slot ${classes[i]}`;
+      div.className   = `lobby-slot ${classes[i]}`;
       div.textContent = `${emojis[i]} ${slots[i]}${i === myPlayerIndex ? ' (tú)' : ''}`;
     } else {
-      div.className = 'lobby-slot empty';
+      div.className   = 'lobby-slot empty';
       div.textContent = `⬜ Esperando jugador ${i+1}...`;
     }
     container.appendChild(div);
@@ -298,55 +338,55 @@ function updateGuestLobby(slots) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  INICIAR PARTIDA ONLINE (Host)
+//  INICIAR PARTIDA ONLINE  (Host pulsa ▶ INICIAR)
 // ─────────────────────────────────────────────────────────────
 function startOnlineGame() {
   if (!isHost) return;
-  const numPlayers = 1 + conns.length; // host + guests conectados
+  const numPlayers = 1 + conns.length;
 
-  // Generar mapa
   generateMap();
 
-  // Enviar datos de inicio a cada guest
+  // Enviar 'start' a cada guest
   conns.forEach((c, i) => {
     try {
       c.send({
-        type:        'start',
-        map:         map,
-        numPlayers:  numPlayers,
-        playerIndex: i + 1,  // guest 0 → P2, guest 1 → P3, etc.
+        type:             'start',
+        map:              map,
+        numPlayers,
+        playerIndex:      i + 1,
         blockDensity,
-        powerupDropChance
+        powerupDropChance,
+        gameTimeSecs:     configGameTime || 180,
+        startLivesCount:  startLives     || 3,
       });
-    } catch(e) {}
+    } catch(_) {}
   });
 
-  // Arrancar juego local del host
   currentMode = 'online';
-  startGame(numPlayers);
+  startGame(numPlayers);          // startGame en game.js
   gameTime = configGameTime || 180;
 
-  // Empezar a sincronizar estado
   startStateSync();
 }
 
-/** El guest recibe el inicio de partida */
+// ─────────────────────────────────────────────────────────────
+//  RECIBIR INICIO DE PARTIDA  (Guest)
+// ─────────────────────────────────────────────────────────────
 function receiveGameStart(data) {
   document.getElementById('guest-waiting').classList.add('hidden');
 
-  // Configurar parámetros del servidor
-  map              = data.map;
-  blockDensity     = data.blockDensity     || 0.7;
-  powerupDropChance = data.powerupDropChance || 0.30;
+  map               = data.map;
+  blockDensity      = data.blockDensity      ?? 0.7;
+  powerupDropChance = data.powerupDropChance ?? 0.30;
   myPlayerIndex     = data.playerIndex;
 
-  // Arrancar la presentación — el guest también necesita el canvas
   currentMode = 'online';
   initAudio();
-  GS = 'playing'; gameTime = data.gameTime || configGameTime || 180;
-  bombs = []; explosions = []; powerups = [];
+  GS        = 'playing';
+  gameTime  = data.gameTimeSecs ?? 180;
+  bombs     = []; explosions = []; powerups = [];
   initPlayers(data.numPlayers);
-  players.forEach(p => { p.lives = startLives || 3; });
+  players.forEach(p => { p.lives = data.startLivesCount ?? 3; });
   updateHUD();
 
   ['main-menu','mode-menu','pause-menu','gameover','online-menu',
@@ -357,22 +397,17 @@ function receiveGameStart(data) {
 
   if (platformMode === 'mobile') {
     document.getElementById('mobile-overlay').classList.remove('hidden');
-    scaleWrapperForMobile();
+    applyMobileLayout();
   }
 
   stopMusic(); tuneIdx = 0; startMusic();
-
-  // El guest envía su input periódicamente
   startGuestInputSend();
-  console.log('[Guest] Juego iniciado como jugador', myPlayerIndex + 1);
+  console.log('[Guest] Juego iniciado como P', myPlayerIndex + 1);
 }
 
 // ─────────────────────────────────────────────────────────────
-//  SINCRONIZACIÓN DE ESTADO (Host → Guests)
-//  El host envía el estado completo cada ~50ms (20 veces/s)
+//  SYNC DE ESTADO  Host → Guests  (~20 fps)
 // ─────────────────────────────────────────────────────────────
-let syncInterval = null;
-
 function startStateSync() {
   if (syncInterval) clearInterval(syncInterval);
   syncInterval = setInterval(() => {
@@ -383,13 +418,13 @@ function startStateSync() {
       gameTime,
       players: players.map(p => ({
         id: p.id, col: p.col, row: p.row,
-        x: p.x, y: p.y,
-        tCol: p.tCol, tRow: p.tRow,
+        x: p.x, y: p.y, tCol: p.tCol, tRow: p.tRow,
         dir: p.dir, moving: p.moving,
         animState: p.animState, animFrame: p.animFrame,
         alive: p.alive, dying: p.dying, dyingT: p.dyingT,
         invincible: p.invincible,
-        lives: p.lives, maxBombs: p.maxBombs, fireRange: p.fireRange, speedMult: p.speedMult
+        lives: p.lives, maxBombs: p.maxBombs,
+        fireRange: p.fireRange, speedMult: p.speedMult,
       })),
       bombs: bombs.map(b => ({
         col:b.col, row:b.row, timer:b.timer, range:b.range, owner:b.owner, t:b.t
@@ -400,28 +435,22 @@ function startStateSync() {
       powerups: powerups.map(pu => ({
         col:pu.col, row:pu.row, type:pu.type, t:pu.t
       })),
-      map  // enviamos el mapa sólo cuando cambia (al romper bloques)
+      map,
     };
 
-    conns.forEach(c => {
-      try { c.send(state); } catch(e) {}
-    });
+    conns.forEach(c => { try { c.send(state); } catch(_){} });
   }, 50);
 }
 
-/** El guest recibe estado del host y actualiza su simulación local */
 function receiveGameState(data) {
   if (GS !== 'playing') return;
 
-  // Actualizar tiempo
   gameTime = data.gameTime;
 
-  // Actualizar jugadores
   if (data.players && players.length === data.players.length) {
     data.players.forEach((pd, i) => {
       const p = players[i];
       if (!p) return;
-      // No sobrescribir posición del jugador local (la interpola suavemente)
       if (i !== myPlayerIndex) {
         p.x = pd.x; p.y = pd.y;
         p.col = pd.col; p.row = pd.row;
@@ -432,44 +461,27 @@ function receiveGameState(data) {
       p.alive = pd.alive; p.dying = pd.dying; p.dyingT = pd.dyingT;
       p.invincible = pd.invincible;
       if (p.lives !== pd.lives) { p.lives = pd.lives; updateHUD(); }
-      p.maxBombs = pd.maxBombs; p.fireRange = pd.fireRange; p.speedMult = pd.speedMult;
+      p.maxBombs  = pd.maxBombs;
+      p.fireRange = pd.fireRange;
+      p.speedMult = pd.speedMult;
     });
   }
 
-  // Actualizar bombas
-  bombs = (data.bombs || []).map(b => ({
-    col:b.col, row:b.row, timer:b.timer, range:b.range,
-    owner:b.owner, t:b.t, passSet: new Set()
-  }));
-
-  // Actualizar explosiones
-  explosions = (data.explosions || []).map(ex => ({
-    cells: ex.cells, timer: ex.timer, t: ex.t
-  }));
-
-  // Actualizar power-ups
-  powerups = (data.powerups || []).map(pu => ({
-    col:pu.col, row:pu.row, type:pu.type, t:pu.t
-  }));
-
-  // Actualizar mapa si ha cambiado
+  bombs      = (data.bombs      || []).map(b  => ({ ...b,  passSet: new Set() }));
+  explosions = (data.explosions || []).map(ex => ({ ...ex }));
+  powerups   = (data.powerups   || []).map(pu => ({ ...pu }));
   if (data.map) map = data.map;
-
-  // Comprobar fin de partida
-  if (data.gameOver !== undefined) endGame(data.gameOver);
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ENVÍO DE INPUT DEL GUEST al Host
+//  ENVÍO DE INPUT  Guest → Host
 // ─────────────────────────────────────────────────────────────
 function startGuestInputSend() {
   if (guestInputInterval) clearInterval(guestInputInterval);
 
   guestInputInterval = setInterval(() => {
-    if (GS !== 'playing' || conns.length === 0) return;
-    const conn = conns[0]; // el guest sólo tiene conexión con el host
+    if (GS !== 'playing' || !conns[0]?.open) return;
 
-    // Leer dirección actual (teclado + táctil)
     const cfg   = PLAYER_CONFIG[myPlayerIndex];
     const touch = virtualHeld[myPlayerIndex + 1] || new Set();
     let dir = null;
@@ -480,61 +492,46 @@ function startGuestInputSend() {
     if (touch.has('right') || held.has(cfg?.keys?.right)) dir = 'right';
 
     try {
-      conn.send({ type:'input', dir, bomb: false, playerIndex: myPlayerIndex });
-    } catch(e) {}
+      conns[0].send({ type: 'input', dir, playerIndex: myPlayerIndex });
+    } catch(_) {}
   }, 50);
 }
 
-/** Aplica el input de un guest a su jugador — llamado desde el host */
 function applyGuestInput(player, data) {
   if (!player.alive || player.dying) return;
-  if (data.dir === null) return;
-
-  // Sólo si el jugador está en la celda destino (igual que _readInput)
+  if (!data.dir) return;
   if (player.col !== player.tCol || player.row !== player.tRow) return;
 
-  const dirMap = { up:[0,-1,'up'], down:[0,1,'down'], left:[-1,0,'left'], right:[1,0,'right'] };
-  const [dc,dr,dirStr] = dirMap[data.dir] || [0,0,player.dir];
-  const nc=player.col+dc, nr=player.row+dr;
-  if (player.isFree(nc,nr)) { player.tCol=nc; player.tRow=nr; }
-  player.dir=dirStr;
+  const dirMap = {
+    up:    [0, -1, 'up'],
+    down:  [0,  1, 'down'],
+    left:  [-1, 0, 'left'],
+    right: [1,  0, 'right'],
+  };
+  const [dc, dr, dirStr] = dirMap[data.dir] || [0, 0, player.dir];
+  const nc = player.col + dc, nr = player.row + dr;
+  if (player.isFree(nc, nr)) { player.tCol = nc; player.tRow = nr; }
+  player.dir = dirStr;
 }
 
 // ─────────────────────────────────────────────────────────────
-//  HOOKS para game.js (llamados desde el sistema de juego)
-//  El host los usa para notificar a los guests de eventos
+//  HOOKS  (llamados desde game.js)
 // ─────────────────────────────────────────────────────────────
-
-/** Llamado cuando el host coloca una bomba */
-function onlineBombBroadcast(col, row, range, ownerId) {
-  // El host ya gestiona las bombas en su loop; sólo necesitamos el estado sync
-  // (incluido en startStateSync). Este hook existe por si quieres feedback inmediato.
-}
-
-/** Llamado cuando el host detona una bomba */
-function onlineExplodeBroadcast(col, row) {
-  // Idem — el estado completo se sincroniza vía startStateSync
-}
-
-/** Llamado cada frame por cada jugador (hook de posición) */
-function onlinePositionBroadcast(player) {
-  // El host sincroniza todo vía startStateSync — no necesitamos envío extra
-}
+function onlineBombBroadcast()     {}   // cubierto por state sync
+function onlineExplodeBroadcast()  {}   // cubierto por state sync
+function onlinePositionBroadcast() {}   // cubierto por state sync
 
 // ─────────────────────────────────────────────────────────────
-//  CANCELAR / LIMPIAR
+//  LIMPIAR
 // ─────────────────────────────────────────────────────────────
-function cancelRoom() {
-  onlineCleanup();
-  goToMenu();
-}
+function cancelRoom() { onlineCleanup(); goToMenu(); }
 
 function onlineCleanup() {
   if (syncInterval)       { clearInterval(syncInterval);       syncInterval = null; }
   if (guestInputInterval) { clearInterval(guestInputInterval); guestInputInterval = null; }
-  conns.forEach(c => { try { c.close(); } catch(e) {} });
+  conns.forEach(c => { try { c.close(); } catch(_){} });
   conns = [];
-  if (peer) { try { peer.destroy(); } catch(e) {} peer = null; }
+  if (peer) { try { peer.destroy(); } catch(_){} peer = null; }
   isHost = false; myRoomCode = ''; myPlayerIndex = 0;
   Object.keys(guestNames).forEach(k => delete guestNames[k]);
 }
