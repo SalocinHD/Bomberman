@@ -742,17 +742,58 @@ function loop(ts) {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  CONFIGURACIÓN DE PARTIDA
+// ─────────────────────────────────────────────────────────────
+let startLives = 3;        // vidas iniciales por jugador
+let configGameTime = 180;  // duración de la partida en segundos
+
+function setDiff(d, btn) {
+  blockDensity = d;
+  document.querySelectorAll('.cfg-btn[onclick*="setDiff"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function setPowerupChance(c, btn) {
+  powerupDropChance = c;
+  document.querySelectorAll('.cfg-btn[onclick*="setPowerupChance"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function setGameTime(secs, btn) {
+  configGameTime = secs;
+  document.querySelectorAll('.cfg-btn[onclick*="setGameTime"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const el = document.getElementById('cfg-time-val');
+  if (el) {
+    if (secs >= 600) el.textContent = '∞';
+    else { const m=Math.floor(secs/60),s=secs%60; el.textContent=`${m}:${s.toString().padStart(2,'0')}`; }
+  }
+}
+
+function setStartLives(n, btn) {
+  startLives = n;
+  document.querySelectorAll('.cfg-btn[onclick*="setStartLives"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const el = document.getElementById('cfg-lives-val');
+  if (el) el.textContent = n;
+}
+
+/** Llamado desde el botón ▶ JUGAR del menú de configuración */
+function startConfiguredGame() {
+  gameTime = configGameTime;
+  startGame();
+}
+
+// ─────────────────────────────────────────────────────────────
 //  ACCIONES DE MENÚ
 // ─────────────────────────────────────────────────────────────
-
-// Modo de plataforma actual ('pc' | 'mobile')
 let platformMode = 'pc';
 
 function selectPlatform(mode) {
   platformMode = mode;
-  document.getElementById('btn-pc').classList.toggle('active',    mode==='pc');
+  document.getElementById('btn-pc').classList.toggle('active',     mode==='pc');
   document.getElementById('btn-mobile').classList.toggle('active', mode==='mobile');
-  document.getElementById('pc-controls').classList.toggle('hidden',    mode==='mobile');
+  document.getElementById('pc-controls').classList.toggle('hidden',     mode==='mobile');
   document.getElementById('mobile-controls').classList.toggle('hidden', mode==='pc');
 }
 
@@ -765,101 +806,182 @@ function showOnlineMenu() {
   document.getElementById('main-menu').classList.add('hidden');
   document.getElementById('mode-menu').classList.add('hidden');
   document.getElementById('online-menu').classList.remove('hidden');
-  document.getElementById('online-status').textContent='';
+  document.getElementById('online-status').textContent = '';
 }
 
 function showJoinMenu() {
   document.getElementById('online-menu').classList.add('hidden');
   document.getElementById('join-menu').classList.remove('hidden');
-  document.getElementById('join-status').textContent='';
+  document.getElementById('join-status').textContent = '';
 }
 
-function setGameMode(mode) {
-  currentMode = mode;
-  if (mode==='locura') powerupDropChance=1.0;
-  else                 powerupDropChance=0.30;
-  startGame();
-}
-
-/** Arranca partida local */
-function startGame(numPlayers=2) {
+/** Arranca partida local con la configuración actual */
+function startGame(numPlayers = 2) {
   initAudio();
-  GS='playing'; gameTime=180;
-  bombs=[]; explosions=[]; powerups=[];
+  GS = 'playing';
+  gameTime = configGameTime;
+  bombs = []; explosions = []; powerups = [];
   generateMap();
   initPlayers(numPlayers);
+
+  // Aplicar vidas iniciales configuradas
+  players.forEach(p => { p.lives = startLives; });
   updateHUD();
 
-  // Ocultar todos los overlays
   ['main-menu','mode-menu','pause-menu','gameover','online-menu',
    'join-menu','waiting-menu','guest-waiting'].forEach(id =>
     document.getElementById(id).classList.add('hidden')
   );
   document.getElementById('hud').classList.remove('hidden');
 
-  // Controles táctiles
-  if (platformMode==='mobile') {
+  if (platformMode === 'mobile') {
     document.getElementById('mobile-overlay').classList.remove('hidden');
-    scaleWrapperForMobile();
+    applyMobileLayout();
   } else {
     document.getElementById('mobile-overlay').classList.add('hidden');
+    // Resetear escala por si se vuelve de móvil a PC
+    document.getElementById('wrapper').style.transform = '';
   }
 
-  stopMusic(); tuneIdx=0; startMusic();
+  stopMusic(); tuneIdx = 0; startMusic();
 }
 
 function pauseGame() {
-  if (GS!=='playing') return;
-  GS='paused';
+  if (GS !== 'playing') return;
+  GS = 'paused';
   document.getElementById('pause-menu').classList.remove('hidden');
   stopMusic();
 }
 
 function resumeGame() {
-  if (GS!=='paused') return;
-  GS='playing';
+  if (GS !== 'paused') return;
+  GS = 'playing';
   document.getElementById('pause-menu').classList.add('hidden');
   startMusic();
 }
 
 function goToMenu() {
-  GS='menu'; stopMusic();
+  GS = 'menu'; stopMusic();
   ['mode-menu','pause-menu','gameover','online-menu','join-menu',
    'waiting-menu','guest-waiting','hud','mobile-overlay'].forEach(id =>
     document.getElementById(id).classList.add('hidden')
   );
   document.getElementById('main-menu').classList.remove('hidden');
-  // Limpiar estado online si existe
-  if (typeof onlineCleanup==='function') onlineCleanup();
+  document.getElementById('wrapper').style.transform = '';
+  document.body.classList.remove('portrait','landscape');
+  if (typeof onlineCleanup === 'function') onlineCleanup();
 }
 
-function setDiff(d,btn) {
-  blockDensity=d;
-  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+/** Volumen desde menú de pausa (slider secundario) */
+function setPauseVolume(v) {
+  globalVol = v / 100;
+  document.getElementById('pause-vol-val').textContent = v;
+  // Sincronizar con slider del menú de config si existe
+  const cfgSlider = document.getElementById('vol-slider');
+  if (cfgSlider) cfgSlider.value = v;
+  const cfgVal = document.getElementById('vol-val');
+  if (cfgVal) cfgVal.textContent = v;
 }
 
-function setPowerupChance(c,btn) {
-  powerupDropChance=c;
-  document.querySelectorAll('.powerup-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+function setVolume(v) {
+  globalVol = v / 100;
+  document.getElementById('vol-val').textContent = v;
+  // Sincronizar con slider de pausa
+  const pauseSlider = document.getElementById('pause-vol-slider');
+  if (pauseSlider) pauseSlider.value = v;
+  const pauseVal = document.getElementById('pause-vol-val');
+  if (pauseVal) pauseVal.textContent = v;
 }
 
 // ─────────────────────────────────────────────────────────────
-//  ESCALA MÓVIL — ajusta el wrapper para caber en la pantalla
+//  LAYOUT MÓVIL ADAPTATIVO  (portrait / landscape + cualquier res)
 // ─────────────────────────────────────────────────────────────
-function scaleWrapperForMobile() {
+
+/**
+ * Calcula orientación real usando screen.orientation o fallback por dimensiones.
+ * Devuelve 'portrait' | 'landscape'
+ */
+function getOrientation() {
+  if (screen.orientation) {
+    return screen.orientation.type.startsWith('portrait') ? 'portrait' : 'landscape';
+  }
+  return window.innerWidth < window.innerHeight ? 'portrait' : 'landscape';
+}
+
+/**
+ * Aplica escala y posición del wrapper + overlay de pads
+ * para que todo quepa en la pantalla sin scroll.
+ *
+ * PORTRAIT:
+ *   - Pads abajo, altura PAD_ZONE_H
+ *   - Canvas ocupa el resto (arriba), escalado para caber en anchura
+ *
+ * LANDSCAPE:
+ *   - Pads columna derecha, anchura PAD_ZONE_W
+ *   - Canvas a la izquierda, escalado para caber en altura
+ */
+function applyMobileLayout() {
+  const orientation = getOrientation();
+  document.body.classList.toggle('portrait',  orientation === 'portrait');
+  document.body.classList.toggle('landscape', orientation === 'landscape');
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
   const wrapper = document.getElementById('wrapper');
-  const scaleX  = window.innerWidth  / 720;
-  const scaleY  = (window.innerHeight - 200) / 676; // 200px reservados para pads
-  const scale   = Math.min(scaleX, scaleY, 1);
-  wrapper.style.transform = `scale(${scale})`;
-  wrapper.style.transformOrigin = 'top center';
+  const overlay = document.getElementById('mobile-overlay');
+
+  // Tamaño lógico del wrapper (canvas 720×624 + HUD 52px = 720×676)
+  const CANVAS_W = 720, CANVAS_H = 676;
+
+  let scale, wrapperLeft, wrapperTop;
+
+  if (orientation === 'portrait') {
+    // ── PAD zone: 36% de la altura de la pantalla (mínimo 180px, máximo 260px)
+    const padH = Math.min(Math.max(vh * 0.36, 180), 260);
+    const available = vh - padH;          // espacio para el canvas
+
+    scale      = Math.min(vw / CANVAS_W, available / CANVAS_H);
+    wrapperLeft = (vw  - CANVAS_W * scale) / 2;
+    wrapperTop  = 0;
+
+    // Comunicar la altura de la zona de pads al CSS
+    document.documentElement.style.setProperty('--pad-zone-h', padH + 'px');
+    // En portrait los dos pads están en la misma fila, centrada
+    overlay.style.cssText = '';   // limpiar estilos inline del modo anterior
+
+  } else {
+    // ── PAD zone: 36% del ancho de la pantalla (mínimo 180px, máximo 260px)
+    const padW = Math.min(Math.max(vw * 0.36, 180), 260);
+    const available = vw - padW;          // espacio para el canvas
+
+    scale       = Math.min(available / CANVAS_W, vh / CANVAS_H);
+    wrapperLeft = 0;
+    wrapperTop  = (vh - CANVAS_H * scale) / 2;
+
+    document.documentElement.style.setProperty('--pad-zone-w', padW + 'px');
+    overlay.style.cssText = '';
+  }
+
+  // Clamp escala — nunca mayor que 1 (no escalar hacia arriba en pantallas grandes)
+  scale = Math.min(scale, 1);
+
+  wrapper.style.transform       = `scale(${scale})`;
+  wrapper.style.transformOrigin = 'top left';
+  wrapper.style.position        = 'absolute';
+  wrapper.style.left            = wrapperLeft + 'px';
+  wrapper.style.top             = wrapperTop  + 'px';
 }
 
-window.addEventListener('resize', () => {
-  if (platformMode==='mobile' && GS==='playing') scaleWrapperForMobile();
-});
+// Escuchar cambios de orientación y resize
+function onOrientationChange() {
+  if (platformMode === 'mobile') applyMobileLayout();
+}
+
+window.addEventListener('resize',              onOrientationChange);
+window.addEventListener('orientationchange',   onOrientationChange);
+if (screen.orientation) {
+  screen.orientation.addEventListener('change', onOrientationChange);
+}
 
 // ─────────────────────────────────────────────────────────────
 //  ARRANQUE

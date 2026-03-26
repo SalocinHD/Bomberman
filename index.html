@@ -80,14 +80,69 @@
     </div>
 
     <!-- ────────────────────────────────────────
-         MENÚ MODO (Local / Locura)
+         MENÚ DE CONFIGURACIÓN (antes "mode-menu")
     ──────────────────────────────────────── -->
-    <div id="mode-menu" class="overlay hidden">
-      <div class="game-title" style="font-size:32px;">MODO LOCAL</div>
-      <div class="game-subtitle">¿Cómo queréis jugar?</div>
-      <button class="btn btn-primary" onclick="setGameMode('local')"  style="margin-bottom:16px;">🎮 NORMAL</button>
-      <button class="btn btn-primary" onclick="setGameMode('locura')" style="margin-bottom:16px;">🤯 LOCURA (power-ups x4)</button>
-      <button class="btn btn-secondary" onclick="goToMenu()">↩ ATRÁS</button>
+    <div id="mode-menu" class="overlay hidden config-overlay">
+      <div class="config-title">⚙ CONFIGURAR PARTIDA</div>
+
+      <div class="config-scroll">
+
+        <!-- Dificultad -->
+        <div class="config-section">
+          <div class="config-section-label">DIFICULTAD</div>
+          <div class="config-btn-row">
+            <button class="cfg-btn"        onclick="setDiff(.45,this)">FÁCIL</button>
+            <button class="cfg-btn active" onclick="setDiff(.7, this)">NORMAL</button>
+            <button class="cfg-btn"        onclick="setDiff(.88,this)">DIFÍCIL</button>
+          </div>
+        </div>
+
+        <!-- Power-ups -->
+        <div class="config-section">
+          <div class="config-section-label">POWER-UPS</div>
+          <div class="config-btn-row">
+            <button class="cfg-btn"        onclick="setPowerupChance(.15,this)">RARA</button>
+            <button class="cfg-btn active" onclick="setPowerupChance(.30,this)">NORMAL</button>
+            <button class="cfg-btn"        onclick="setPowerupChance(.55,this)">FRECUENTE</button>
+            <button class="cfg-btn locura-btn" onclick="setPowerupChance(1.0,this)">🤯 LOCURA</button>
+          </div>
+        </div>
+
+        <!-- Tiempo de partida -->
+        <div class="config-section">
+          <div class="config-section-label">TIEMPO: <span id="cfg-time-val">3:00</span></div>
+          <div class="config-btn-row">
+            <button class="cfg-btn"        onclick="setGameTime(120,this)">2 MIN</button>
+            <button class="cfg-btn active" onclick="setGameTime(180,this)">3 MIN</button>
+            <button class="cfg-btn"        onclick="setGameTime(300,this)">5 MIN</button>
+            <button class="cfg-btn"        onclick="setGameTime(600,this)">∞</button>
+          </div>
+        </div>
+
+        <!-- Vidas -->
+        <div class="config-section">
+          <div class="config-section-label">VIDAS: <span id="cfg-lives-val">3</span></div>
+          <div class="config-btn-row">
+            <button class="cfg-btn"        onclick="setStartLives(1,this)">1</button>
+            <button class="cfg-btn"        onclick="setStartLives(2,this)">2</button>
+            <button class="cfg-btn active" onclick="setStartLives(3,this)">3</button>
+            <button class="cfg-btn"        onclick="setStartLives(5,this)">5</button>
+          </div>
+        </div>
+
+        <!-- Volumen -->
+        <div class="config-section">
+          <div class="config-section-label">VOLUMEN: <span id="vol-val">70</span>%</div>
+          <input type="range" id="vol-slider" class="cfg-slider" min="0" max="100" value="70"
+                 oninput="setVolume(this.value)">
+        </div>
+
+      </div><!-- /.config-scroll -->
+
+      <div class="config-footer">
+        <button class="btn btn-secondary" onclick="goToMenu()">↩ ATRÁS</button>
+        <button class="btn btn-primary"   onclick="startConfiguredGame()">▶ JUGAR</button>
+      </div>
     </div>
 
     <!-- ────────────────────────────────────────
@@ -169,33 +224,15 @@
     </div>
 
     <!-- ────────────────────────────────────────
-         MENÚ DE PAUSA
+         MENÚ DE PAUSA (simplificado)
     ──────────────────────────────────────── -->
     <div id="pause-menu" class="overlay hidden">
       <div class="pause-title">⏸ PAUSA</div>
 
-      <div class="slider-row">
-        <label>VOLUMEN: <span id="vol-val">70</span>%</label>
-        <input type="range" id="vol-slider" min="0" max="100" value="70" oninput="setVolume(this.value)">
-      </div>
-
-      <div class="slider-row">
-        <label>DIFICULTAD (densidad de bloques)</label>
-        <div class="diff-row">
-          <button class="diff-btn"        onclick="setDiff(.45,this)">FÁCIL</button>
-          <button class="diff-btn active" onclick="setDiff(.7, this)">NORMAL</button>
-          <button class="diff-btn"        onclick="setDiff(.88,this)">DIFÍCIL</button>
-        </div>
-      </div>
-
-      <div class="slider-row">
-        <label>POWER-UPS (probabilidad de caída)</label>
-        <div class="diff-row">
-          <button class="powerup-btn"        onclick="setPowerupChance(.15,this)">RARA</button>
-          <button class="powerup-btn active" onclick="setPowerupChance(.30,this)">NORMAL</button>
-          <button class="powerup-btn"        onclick="setPowerupChance(.55,this)">FRECUENTE</button>
-          <button class="powerup-btn"        onclick="setPowerupChance(1.0,this)">LOCURA</button>
-        </div>
+      <div class="pause-vol-row">
+        <span class="pause-vol-label">🔊 <span id="pause-vol-val">70</span>%</span>
+        <input type="range" id="pause-vol-slider" min="0" max="100" value="70"
+               oninput="setPauseVolume(this.value)" class="cfg-slider" style="width:200px;">
       </div>
 
       <div class="pause-btns">

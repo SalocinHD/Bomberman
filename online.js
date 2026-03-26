@@ -324,6 +324,7 @@ function startOnlineGame() {
   // Arrancar juego local del host
   currentMode = 'online';
   startGame(numPlayers);
+  gameTime = configGameTime || 180;
 
   // Empezar a sincronizar estado
   startStateSync();
@@ -342,9 +343,10 @@ function receiveGameStart(data) {
   // Arrancar la presentación — el guest también necesita el canvas
   currentMode = 'online';
   initAudio();
-  GS = 'playing'; gameTime = 180;
+  GS = 'playing'; gameTime = data.gameTime || configGameTime || 180;
   bombs = []; explosions = []; powerups = [];
   initPlayers(data.numPlayers);
+  players.forEach(p => { p.lives = startLives || 3; });
   updateHUD();
 
   ['main-menu','mode-menu','pause-menu','gameover','online-menu',
