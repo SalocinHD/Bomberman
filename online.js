@@ -31,14 +31,19 @@ let syncInterval       = null;
 //  No necesita cuenta — usa la key "peerjs" por defecto.
 // ─────────────────────────────────────────────────────────────
 const PEER_CFG = {
-  // Sin host/port/path → usa el broker por defecto de la lib (peerjs.com)
-  // Esto es lo mismo que new Peer() pero dejándolo explícito:
   debug: 0,
   config: {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302'      },
-      { urls: 'stun:stun1.l.google.com:19302'     },
-      { urls: 'stun:global.stun.twilio.com:3478'  },
+      // STUN
+      { urls: 'stun:stun.l.google.com:19302'  },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      // TURN relay (Open Relay - gratuito, sin cuenta)
+      { urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject', credential: 'openrelayproject' },
     ]
   }
 };
@@ -105,7 +110,7 @@ function makePeer(peerId) {
       // Si ya está abierto y recibimos peer-unavailable, ignorar aquí
     });
 
-    setTimeout(() => finish(false, 'TIMEOUT'), 15000);
+    setTimeout(() => finish(false, 'TIMEOUT'), 20000);
   });
 }
 
@@ -282,7 +287,7 @@ async function joinRoomByCode() {
       document.getElementById('guest-waiting').classList.add('hidden');
       document.getElementById('join-menu').classList.remove('hidden');
     }
-  }, 12000);
+  }, 20000);
 }
 
 function updateGuestLobby(slots) {

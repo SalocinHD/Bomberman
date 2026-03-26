@@ -26,7 +26,7 @@ let bombs      = [];
 let explosions = [];
 let players    = [];
 
-// Modo actual: 'local' | 'locura' | 'online'
+// Modo actual: 'local' o 'online' (si se implementa)
 let currentMode = 'local';
 
 // ─────────────────────────────────────────────────────────────
