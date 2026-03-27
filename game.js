@@ -902,13 +902,10 @@ function setVolume(v) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  LAYOUT MÓVIL ADAPTATIVO  (portrait / landscape + cualquier res)
+//  LAYOUT MÓVIL ADAPTATIVO
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Calcula orientación real usando screen.orientation o fallback por dimensiones.
- * Devuelve 'portrait' | 'landscape'
- */
+
 function getOrientation() {
   if (screen.orientation) {
     return screen.orientation.type.startsWith('portrait') ? 'portrait' : 'landscape';
@@ -916,18 +913,6 @@ function getOrientation() {
   return window.innerWidth < window.innerHeight ? 'portrait' : 'landscape';
 }
 
-/**
- * Aplica escala y posición del wrapper + overlay de pads
- * para que todo quepa en la pantalla sin scroll.
- *
- * PORTRAIT:
- *   - Pads abajo, altura PAD_ZONE_H
- *   - Canvas ocupa el resto (arriba), escalado para caber en anchura
- *
- * LANDSCAPE:
- *   - Pads columna derecha, anchura PAD_ZONE_W
- *   - Canvas a la izquierda, escalado para caber en altura
- */
 function applyMobileLayout() {
   const orientation = getOrientation();
   document.body.classList.toggle('portrait',  orientation === 'portrait');

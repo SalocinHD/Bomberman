@@ -11,9 +11,7 @@
 
 <div id="wrapper">
 
-  <!-- ══════════════════════════════════════════════════════
-       HUD INGAME
-  ══════════════════════════════════════════════════════ -->
+  <!--HUD INGAME-->
   <div id="hud" class="hidden">
     <div class="phud p1hud">
       <span class="phud-name">🟦 P1</span>
@@ -31,16 +29,12 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════
-       ÁREA DE JUEGO
-  ══════════════════════════════════════════════════════ -->
+  <!-- ÁREA DE JUEGO-->
   <div id="game-area">
     <canvas id="game" width="720" height="624"></canvas>
     <div id="scanlines"></div>
 
-    <!-- ────────────────────────────────────────
-         MENÚ PRINCIPAL
-    ──────────────────────────────────────── -->
+    <!-- MENÚ PRINCIPAL -->
     <div id="main-menu" class="overlay">
       <div class="game-title">BOMBERDUO</div>
       <div class="game-subtitle">★ DYNA BLASTER STYLE ★</div>
@@ -77,9 +71,7 @@
       </div>
     </div>
 
-    <!-- ────────────────────────────────────────
-         MENÚ DE CONFIGURACIÓN (antes "mode-menu")
-    ──────────────────────────────────────── -->
+    <!-- /MENÚ DE CONFIGURACIÓN/-->
     <div id="mode-menu" class="overlay hidden config-overlay">
       <div class="config-title">⚙ CONFIGURAR PARTIDA</div>
 
@@ -143,9 +135,7 @@
       </div>
     </div>
 
-    <!-- ────────────────────────────────────────
-         MENÚ ONLINE
-    ──────────────────────────────────────── -->
+    <!-- MENÚ ONLINE-->
     <div id="online-menu" class="overlay hidden">
       <div class="game-title" style="font-size:30px;">🌐 ONLINE</div>
       <div class="game-subtitle" style="margin-bottom:20px;">Hasta 4 jugadores • Sin servidor</div>
@@ -161,9 +151,7 @@
       <div id="online-status" class="online-status"></div>
     </div>
 
-    <!-- ────────────────────────────────────────
-         MENÚ UNIRSE
-    ──────────────────────────────────────── -->
+    <!-- MENÚ UNIRSE-->
     <div id="join-menu" class="overlay hidden">
       <div class="game-title" style="font-size:26px;">UNIRSE A SALA</div>
 
@@ -179,9 +167,7 @@
       <div id="join-status" class="online-status"></div>
     </div>
 
-    <!-- ────────────────────────────────────────
-         SALA DE ESPERA — HOST
-    ──────────────────────────────────────── -->
+    <!-- ALA DE ESPERA — HOST-->
     <div id="waiting-menu" class="overlay hidden">
       <div class="game-title" style="font-size:24px;">SALA DE ESPERA</div>
 
@@ -205,9 +191,7 @@
       <div style="font-size:7px;color:#555;margin-top:8px;">Mínimo 2 jugadores para iniciar</div>
     </div>
 
-    <!-- ────────────────────────────────────────
-         SALA DE ESPERA — GUEST
-    ──────────────────────────────────────── -->
+    <!-- SALA DE ESPERA — GUEST-->
     <div id="guest-waiting" class="overlay hidden">
       <div class="game-title" style="font-size:24px;">CONECTADO</div>
       <div class="room-code-display">
@@ -221,9 +205,7 @@
       <button class="btn btn-secondary" style="margin-top:16px;" onclick="cancelRoom()">✕ SALIR</button>
     </div>
 
-    <!-- ────────────────────────────────────────
-         MENÚ DE PAUSA (simplificado)
-    ──────────────────────────────────────── -->
+    <!-- MENÚ DE PAUSA-->
     <div id="pause-menu" class="overlay hidden">
       <div class="pause-title">⏸ PAUSA</div>
 
@@ -239,9 +221,7 @@
       </div>
     </div>
 
-    <!-- ────────────────────────────────────────
-         GAME OVER
-    ──────────────────────────────────────── -->
+    <!-- GAME OVER-->
     <div id="gameover" class="overlay hidden">
       <div class="go-title">GAME OVER</div>
       <div class="winner-text" id="winner-text"></div>
@@ -252,10 +232,7 @@
   </div><!-- /#game-area -->
 </div><!-- /#wrapper -->
 
-<!-- ══════════════════════════════════════════════════════════
-     CONTROLES TÁCTILES MÓVIL
-     Posicionados fuera del wrapper para cubrir la pantalla completa
-══════════════════════════════════════════════════════════ -->
+<!-- CONTROLES TÁCTILES MÓVIL-->
 <div id="mobile-overlay" class="hidden">
 
   <!-- D-pad izquierdo — Jugador 1 -->

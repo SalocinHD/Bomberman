@@ -1,6 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
-   BomberDuo — Hoja de estilos principal
-   ═══════════════════════════════════════════════════════════════ */
+/* Hoja de estilos principal*/
 
 * {
   margin: 0; padding: 0; box-sizing: border-box;
@@ -32,11 +30,6 @@ body {
   justify-content: center;
 }
 
-/* ════════════════════════════════════════════════════════
-   WRAPPER  — contiene HUD + canvas
-   En PC se mantiene a 720px.
-   En móvil el JS calcula la escala y la aplica.
-════════════════════════════════════════════════════════ */
 #wrapper {
   position: relative;
   width: 720px;
@@ -47,9 +40,6 @@ body {
   flex-shrink: 0;
 }
 
-/* ════════════════════════════════════════════════════════
-   HUD
-════════════════════════════════════════════════════════ */
 #hud {
   background: #0d0d1a;
   border-bottom: 3px solid var(--c-yellow);
@@ -75,9 +65,6 @@ body {
 #game-timer  { font-size: 16px; color: var(--c-yellow); }
 #hud-label   { font-size: 7px; color: #555; margin-top: 3px; }
 
-/* ════════════════════════════════════════════════════════
-   ÁREA DE JUEGO + CANVAS
-════════════════════════════════════════════════════════ */
 #game-area {
   position: relative;
   width: 720px;
@@ -99,9 +86,6 @@ canvas {
   z-index: 30;
 }
 
-/* ════════════════════════════════════════════════════════
-   OVERLAYS GENÉRICOS
-════════════════════════════════════════════════════════ */
 .overlay {
   position: absolute; inset: 0;
   display: flex; flex-direction: column;
@@ -110,9 +94,7 @@ canvas {
 }
 .overlay.hidden { display: none; }
 
-/* ════════════════════════════════════════════════════════
-   MENÚ PRINCIPAL
-════════════════════════════════════════════════════════ */
+
 #main-menu {
   background: radial-gradient(ellipse 80% 80% at 50% 50%, #1a0a30 0%, #080810 100%);
 }
@@ -163,9 +145,7 @@ canvas {
 .ctrl-p1 h3   { color: var(--c-blue); }
 .ctrl-p2 h3   { color: var(--c-red); }
 
-/* ════════════════════════════════════════════════════════
-   BOTONES GLOBALES
-════════════════════════════════════════════════════════ */
+
 .btn {
   font-family: 'Press Start 2P', monospace;
   cursor: pointer; border: none; letter-spacing: 2px; transition: all .1s;
@@ -185,9 +165,7 @@ canvas {
 .btn-secondary:hover  { color: #fff; border-color: #fff; }
 .btn-secondary:active { transform: scale(.97); }
 
-/* ════════════════════════════════════════════════════════
-   MENÚ DE CONFIGURACIÓN  (reemplaza al antiguo mode-menu)
-════════════════════════════════════════════════════════ */
+
 .config-overlay {
   background: radial-gradient(ellipse 90% 90% at 50% 50%, #0d1520 0%, #080810 100%) !important;
   justify-content: flex-start !important;
@@ -222,7 +200,7 @@ canvas {
   display: flex; flex-wrap: wrap; gap: 6px;
 }
 
-/* Botones de configuración (estilo unificado, reemplaza diff-btn y powerup-btn) */
+/* Botones de configuración */
 .cfg-btn {
   font-family: 'Press Start 2P', monospace;
   padding: 8px 14px; font-size: 7px;
@@ -258,9 +236,6 @@ canvas {
   border-top: 1px solid #1a1a2a;
 }
 
-/* ════════════════════════════════════════════════════════
-   MENÚ DE PAUSA  (simplificado)
-════════════════════════════════════════════════════════ */
 #pause-menu {
   background: var(--c-panel);
   backdrop-filter: blur(4px);
@@ -277,9 +252,7 @@ canvas {
 .pause-vol-label { font-size: 9px; color: #888; white-space: nowrap; }
 .pause-btns { display: flex; gap: 14px; margin-top: 28px; }
 
-/* ════════════════════════════════════════════════════════
-   GAME OVER
-════════════════════════════════════════════════════════ */
+
 #gameover {
   background: radial-gradient(ellipse 80% 80% at 50% 50%, #1a0000 0%, #080810 100%);
 }
@@ -300,9 +273,7 @@ canvas {
 .w-p2  { color: var(--c-red); }
 .w-draw{ color: var(--c-yellow); }
 
-/* ════════════════════════════════════════════════════════
-   MENÚS ONLINE
-════════════════════════════════════════════════════════ */
+
 #online-menu, #join-menu, #waiting-menu, #guest-waiting {
   background: radial-gradient(ellipse 80% 80% at 50% 50%, #0a1a30 0%, #080810 100%);
 }
@@ -341,12 +312,9 @@ canvas {
 #start-online-btn:disabled:hover { transform:none; box-shadow:none; background:var(--c-yellow); }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-/* ════════════════════════════════════════════════════════════════
-   CONTROLES TÁCTILES MÓVIL
-   Layout dinámico: JS añade clase .portrait o .landscape al body
-════════════════════════════════════════════════════════════════ */
 
-/* Contenedor principal de los pads — fuera del wrapper */
+
+/* Contenedor principal de los pads */
 #mobile-overlay {
   position: fixed; z-index: 200;
   pointer-events: none;
@@ -355,7 +323,7 @@ canvas {
 }
 #mobile-overlay.hidden { display: none !important; }
 
-/* ── PORTRAIT: pads en la parte inferior, full-width ── */
+
 body.portrait #mobile-overlay {
   bottom: 0; left: 0;
   width: 100%;
@@ -364,7 +332,6 @@ body.portrait #mobile-overlay {
   padding: 8px 10px env(safe-area-inset-bottom, 8px);
 }
 
-/* ── LANDSCAPE: pads a la derecha del canvas ── */
 body.landscape #mobile-overlay {
   right: 0; top: 0;
   width: var(--pad-zone-w, 220px);
@@ -383,7 +350,7 @@ body.landscape #mobile-overlay {
 .p1-color      { color: var(--c-blue); }
 .p2-color      { color: var(--c-red); }
 
-/* D-pad cross — tamaño controlado por CSS variable --dpad-cell */
+
 .dpad {
   display: grid;
   grid-template-columns: repeat(3, var(--dpad-cell, 54px));
@@ -430,18 +397,16 @@ body.landscape #mobile-overlay {
 .p2-bomb { border-color: var(--c-red);   background: rgba(255,68,68,.12); }
 .p2-bomb:active { background: rgba(255,68,68,.4); }
 
-/* ── PORTRAIT: dimensiones de los pads según el espacio disponible ── */
+
 body.portrait  { --dpad-cell: clamp(42px, 11vw, 62px); --bomb-size: clamp(58px, 15vw, 76px); }
 /* ── LANDSCAPE: pads más compactos ── */
 body.landscape { --dpad-cell: clamp(36px, 7vw, 52px);  --bomb-size: clamp(50px, 10vw, 66px); }
 
-/* En landscape, pad-left al lado de pad-right dentro de la columna */
+
 body.landscape .touch-pad { flex-direction: row; align-items: center; gap: 12px; }
 body.landscape .dpad { gap: 2px; }
 
-/* ════════════════════════════════════════════════════════
-   SAFE AREA (notch / home indicator)
-════════════════════════════════════════════════════════ */
+
 @supports (padding: env(safe-area-inset-bottom)) {
   body.portrait #mobile-overlay {
     padding-bottom: calc(8px + env(safe-area-inset-bottom));
