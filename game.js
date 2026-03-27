@@ -26,7 +26,7 @@ let bombs      = [];
 let explosions = [];
 let players    = [];
 
-// Modo actual: 'local' o 'online' (si se implementa)
+// Modo actual: 'local' | 'locura' | 'online'
 let currentMode = 'local';
 
 // ─────────────────────────────────────────────────────────────
@@ -353,7 +353,12 @@ class Player {
       this.animFrame=Math.floor(this.animT*8)%8;
       if (this.dyingT<=0) {
         this.dying=false;
-        if (this.lives<=0) { this.alive=false; return; }
+        if (this.lives<=0) {
+          this.alive=false;
+          checkWin(); // ahora sí: alive=false, el filtro lo excluye correctamente
+          return;
+        }
+        // Tiene vidas restantes → reaparece
         this.col=this.tCol=this.spawnCol;
         this.row=this.tRow=this.spawnRow;
         this.x=this.spawnCol*CELL+CELL/2;
@@ -436,8 +441,8 @@ class Player {
     if (this.dying) return;
     this.lives--; this.dying=true; this.dyingT=1.2; this.animT=0;
     sfx('death'); updateHUD();
-    if (this.lives===0) checkWin(false);
-    else checkWin(false);
+    // NO llamamos checkWin aquí — se llama cuando termina la animación
+    // (si llamamos ahora, dying=true excluye al jugador del conteo)
   }
 
   // ─── Dibujo (spritesheet virtual) ───────────────────────────
@@ -532,7 +537,10 @@ function initPlayers(numPlayers = 2) {
 //  WIN / END
 // ─────────────────────────────────────────────────────────────
 function checkWin(timeUp = false) {
-  const alive = players.filter(p => p.alive && !p.dying);
+  // Un jugador cuenta como "eliminado" si alive=false
+  // Si dying=true pero lives>0, sigue contando (va a reaparecer)
+  // Si dying=true y lives=0, ya tiene alive=false cuando llegamos aquí
+  const alive = players.filter(p => p.alive);
 
   if (timeUp) {
     // Gana quien más vidas tenga
