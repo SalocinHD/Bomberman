@@ -56,8 +56,8 @@ body {
 
 .phud { display: flex; flex-direction: column; gap: 4px; min-width: 180px; }
 .phud-name  { font-size: 9px;  letter-spacing: 1px; }
-.phud-lives { font-size: 11px; }
-.phud-stats { font-size: 7px;  opacity: .75; }
+.phud-lives { font-size: 11px; color: #ff2222; }
+.phud-stats { font-size: 7px;  opacity: 1; -webkit-text-fill-color: #fff; }
 .p1hud .phud-name { color: var(--c-blue); }
 .p2hud .phud-name { color: var(--c-red); }
 .p2hud            { align-items: flex-end; }

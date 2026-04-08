@@ -16,7 +16,7 @@
     <div class="phud p1hud">
       <span class="phud-name">🟦 P1</span>
       <span class="phud-lives" id="p1-lives">❤❤❤</span>
-      <span class="phud-stats" id="p1-stats">💣×1 🔥×1 ⚡×1</span>
+      <span class="phud-stats" id="p1-stats">💣1 🔥1 ⚡1</span>
     </div>
     <div id="hud-center">
       <div id="game-timer">3:00</div>
@@ -25,7 +25,7 @@
     <div class="phud p2hud">
       <span class="phud-name">P2 🟥</span>
       <span class="phud-lives" id="p2-lives">❤❤❤</span>
-      <span class="phud-stats" id="p2-stats">💣×1 🔥×1 ⚡×1</span>
+      <span class="phud-stats" id="p2-stats">💣1 🔥1 ⚡1</span>
     </div>
   </div>
 
@@ -37,18 +37,18 @@
     <!-- MENÚ PRINCIPAL -->
     <div id="main-menu" class="overlay">
       <div class="game-title">BOMBERDUO</div>
-      <div class="game-subtitle">★ DYNA BLASTER STYLE ★</div>
+      <div class="game-subtitle">DYNA BLASTER</div>
 
       <!-- Selector de plataforma -->
       <div class="platform-row">
-        <button class="plat-btn active" id="btn-pc"     onclick="selectPlatform('pc')">🖥️ PC</button>
-        <button class="plat-btn"        id="btn-mobile" onclick="selectPlatform('mobile')">📱 MÓVIL</button>
+        <button class="plat-btn active" id="btn-pc"     onclick="selectPlatform('pc')">PC</button>
+        <button class="plat-btn"        id="btn-mobile" onclick="selectPlatform('mobile')">MÓVIL</button>
       </div>
 
       <!-- Botones de modo -->
       <div class="menu-btns">
         <button class="btn btn-primary" onclick="showModeMenu()">▶ JUGAR LOCAL</button>
-        <button class="btn btn-primary online-btn" onclick="showOnlineMenu()">🌐 JUGAR ONLINE</button>
+        <button class="btn btn-primary online-btn" onclick="showOnlineMenu()">JUGAR ONLINE</button>
       </div>
 
       <!-- Info controles PC -->
@@ -94,7 +94,7 @@
             <button class="cfg-btn"        onclick="setPowerupChance(.15,this)">RARA</button>
             <button class="cfg-btn active" onclick="setPowerupChance(.30,this)">NORMAL</button>
             <button class="cfg-btn"        onclick="setPowerupChance(.55,this)">FRECUENTE</button>
-            <button class="cfg-btn locura-btn" onclick="setPowerupChance(1.0,this)">🤯 LOCURA</button>
+            <button class="cfg-btn locura-btn" onclick="setPowerupChance(1.0,this)">LOCURA</button>
           </div>
         </div>
 
@@ -137,8 +137,8 @@
 
     <!-- MENÚ ONLINE-->
     <div id="online-menu" class="overlay hidden">
-      <div class="game-title" style="font-size:30px;">🌐 ONLINE</div>
-      <div class="game-subtitle" style="margin-bottom:20px;">Hasta 4 jugadores • Sin servidor</div>
+      <div class="game-title" style="font-size:30px;">ONLINE</div>
+      <div class="game-subtitle" style="margin-bottom:20px;">Hasta 4 jugadores</div>
 
       <div class="online-field">
         <label>TU NOMBRE</label>
@@ -146,7 +146,7 @@
       </div>
 
       <button class="btn btn-primary" onclick="createRoom()"    style="margin-bottom:12px;">➕ CREAR SALA</button>
-      <button class="btn btn-primary" onclick="showJoinMenu()"  style="margin-bottom:12px;">🔍 UNIRSE A SALA</button>
+      <button class="btn btn-primary" onclick="showJoinMenu()"  style="margin-bottom:12px;">UNIRSE A SALA</button>
       <button class="btn btn-secondary" onclick="goToMenu()">↩ ATRÁS</button>
       <div id="online-status" class="online-status"></div>
     </div>
@@ -216,7 +216,7 @@
       </div>
 
       <div class="pause-btns">
-        <button class="btn btn-secondary" onclick="goToMenu()">🏠 MENÚ</button>
+        <button class="btn btn-secondary" onclick="goToMenu()">MENÚ</button>
         <button class="btn btn-primary"   onclick="resumeGame()">▶ CONTINUAR</button>
       </div>
     </div>
@@ -226,7 +226,7 @@
       <div class="go-title">GAME OVER</div>
       <div class="winner-text" id="winner-text"></div>
       <button class="btn btn-primary"   onclick="startGame()" style="margin-bottom:14px;">🔄 REVANCHA</button>
-      <button class="btn btn-secondary" onclick="goToMenu()">🏠 MENÚ PRINCIPAL</button>
+      <button class="btn btn-secondary" onclick="goToMenu()">MENÚ PRINCIPAL</button>
     </div>
 
   </div><!-- /#game-area -->
